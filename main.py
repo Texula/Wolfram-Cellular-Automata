@@ -1,6 +1,7 @@
 import sys
 import pygame
 import numpy as np
+import colorsys
 
 pygame.init()
 
@@ -13,6 +14,8 @@ TEXT_COLOR = (255, 255, 255)
 BACKGROUND_COLOR = (30, 30, 30)
 INPUT_BOX_COLOR = (200, 200, 200)
 INPUT_BOX_ACTIVE_COLOR = (255, 255, 255)
+CHECKMARK_COLOR = (200, 200, 200)
+CHECKMARK_ACTIVE_COLOR = (50, 200, 50)
 
 # fonturi
 pygame.font.init()
@@ -24,6 +27,7 @@ grid_width = (WIDTH - UI_WIDTH) // cell_size
 generations = HEIGHT // cell_size
 rule_number = 30
 is_running = False
+use_rainbow = False
 
 def draw_button(screen, rect, text, is_hovered):
     if text == "Stop":
@@ -43,9 +47,19 @@ def draw_input_box(screen, rect, text, is_active):
     text_rect = text_surface.get_rect(midleft=(rect.x + 5, rect.centery))
     screen.blit(text_surface, text_rect)
 
+def draw_checkmark(screen, rect, is_checked):
+    pygame.draw.rect(screen, CHECKMARK_COLOR, rect, 2)
+    if is_checked:
+        pygame.draw.line(screen, CHECKMARK_ACTIVE_COLOR, (rect.left + 5, rect.centery), (rect.centerx, rect.bottom - 5), 3)
+        pygame.draw.line(screen, CHECKMARK_ACTIVE_COLOR, (rect.centerx, rect.bottom - 5), (rect.right - 5, rect.top + 5), 3)
+
 def get_color(gen_nr):
-    # Folosim o culoare constantă pentru toate celulele
-    return 255, 255, 255  # Alb pentru celule vii
+    if use_rainbow:
+        hue = (gen_nr * 0.03) % 1.0
+        r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+        return int(r * 255), int(g * 255), int(b * 255)
+    else:
+        return 255, 255, 255
 
 def new_generation(generation, rule_binary):
     nextgen = np.zeros_like(generation)
@@ -64,7 +78,7 @@ def binary_of(number, bits=8):
     return [int(bit) for bit in f"{number:0{bits}b}"]
 
 def main():
-    global rule_number, cell_size, grid_width, generations, is_running
+    global rule_number, cell_size, grid_width, generations, is_running, use_rainbow
 
     # Initialize pygame
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -79,6 +93,7 @@ def main():
     rule_input_box = pygame.Rect(WIDTH - UI_WIDTH + 20, 50, 200, 40)
     cell_size_input_box = pygame.Rect(WIDTH - UI_WIDTH + 20, 120, 200, 40)
     start_button = pygame.Rect(WIDTH - UI_WIDTH + 20, 190, 200, 50)
+    checkmark_box = pygame.Rect(WIDTH - UI_WIDTH + 20, 260, 30, 30)
 
     rule_input = str(rule_number)
     cell_size_input = str(cell_size)
@@ -130,7 +145,8 @@ def main():
                         gen_nr = 0
                         generation = np.zeros(grid_width, dtype=int)
                         generation[grid_width // 2] = 1
-
+                elif checkmark_box.collidepoint(event.pos):
+                    use_rainbow = not use_rainbow
                 else:
                     rule_input_active = False
                     cell_size_input_active = False
@@ -151,8 +167,12 @@ def main():
         draw_input_box(screen, rule_input_box, rule_input, rule_input_active)
         draw_input_box(screen, cell_size_input_box, cell_size_input, cell_size_input_active)
         draw_button(screen, start_button, "Start" if not is_running else "Stop", start_button.collidepoint(pygame.mouse.get_pos()))
+        draw_checkmark(screen, checkmark_box, use_rainbow)
 
-        # Functia prin care se simulează automaata
+        checkmark_text = FONT.render("Rainbow", True, TEXT_COLOR)
+        screen.blit(checkmark_text, (checkmark_box.right + 10, checkmark_box.top))
+
+        # Functia prin care se simuleaa automaata
         if is_running:
             if gen_nr < generations:
                 display_generation(automaton_surface, gen_nr, generation, cell_size)
